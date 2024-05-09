@@ -1,3 +1,14 @@
+# MsBackendTimsTof 0.2
+
+## MsBackendTimsTof 0.2.0
+
+- Read PASEF MS/MS data from the TDF tables.
+
+- Add methods for `precursorMz`, `precursorCharge`, `precursorIntensity`, `collisionEnergy`,   `isolationWindowLowerMz`, `isolationWindowTargetMz` and `isolationWindowUpperMz`.
+
+- Update version info automatically in the `version` slot.
+
+
 # MsBackendTimsTof 0.1
 
 ## MsBackendTimsTof 0.1.2

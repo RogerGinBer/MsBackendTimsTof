@@ -163,6 +163,7 @@ test_that("spectraData,MsBackendTimsTof works", {
     expect_equal(res$inv_ion_mobility, res_2$inv_ion_mobility)
 
     ## Random order
+    set.seed(1234)
     idx <- sample(seq_along(be))
     be_2 <- be[idx]
 
@@ -191,7 +192,7 @@ test_that("precursorMz,MsBackendTimsTof works", {
 })
 
 test_that("precursorCharge,MsBackendTimsTof works", {
-    expect_identical(precursorCharge(MsBackendTimsTof()), numeric(0))
+    expect_identical(precursorCharge(MsBackendTimsTof()), integer(0))
     res <- precursorCharge(be)
     expect_identical(length(res), length(be))
 })

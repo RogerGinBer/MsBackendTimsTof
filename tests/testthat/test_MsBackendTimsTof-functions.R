@@ -148,7 +148,7 @@ test_that(".inv_ion_mobility works", {
 
 test_that("calculate_core_ms2_information works", {
     tbl <- .calculate_core_ms2_information(be)
-    expect_true(is.numeric(tbl))
+    expect_true(all(apply(tbl, 2, is.numeric)))
     expect_equal(ncol(tbl), length(.TIMSTOF_MS2_COLUMNS))
     expect_equal(nrow(tbl), nrow(be@indices))
     expect_true(!all(is.na(tbl)))

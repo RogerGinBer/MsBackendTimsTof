@@ -6,7 +6,7 @@
 #'
 #' @importFrom MsCoreUtils rbindFill
 #'
-#' @importFrom opentimsr OpenTIMS CloseTIMS
+#' @importFrom opentimsr OpenTIMS CloseTIMS table2df
 #'
 #' @return initialized `MsBackendTimsTOF` object
 #'
@@ -33,6 +33,7 @@
         x@frames$polarity <- .format_polarity(x@frames$polarity)
     x@indices <- do.call(rbind, lapply(L, "[[", 2))
     x@fileNames <- setNames(seq_len(length(file)), file)
+    
     x
 }
 
@@ -355,14 +356,17 @@ MsBackendTimsTof <- function() {
         core_cols <- core_cols[core_cols != "dataStorage"]
     }
     if (any(core_cols %in% .TIMSTOF_MS2_COLUMNS)) {
-        res_ms2_data <- .calculate_core_ms2_information(x)
+        res_ms2_data <- .calculate_core_ms2_information(
+            x, 
+            columns = core_cols[core_cols %in% .TIMSTOF_MS2_COLUMNS]
+        )
         for (col in core_cols[core_cols %in% .TIMSTOF_MS2_COLUMNS]) {
             if (col == "precursorCharge"){
                 res[[col]] <- as.integer(
-                    res_ms2_data[, which(.TIMSTOF_MS2_COLUMNS == col)]
+                    res_ms2_data[, col]
                 )
             } else {
-                res[[col]] <- res_ms2_data[, which(.TIMSTOF_MS2_COLUMNS == col)]    
+                res[[col]] <- res_ms2_data[, col]    
             }
             core_cols <- core_cols[core_cols != col]
         }
@@ -377,51 +381,83 @@ MsBackendTimsTof <- function() {
 }
 
 #' @importFrom BiocParallel bpmapply bpparam
-.calculate_core_ms2_information <- function(x){
+.calculate_core_ms2_information <- function(x, columns = .TIMSTOF_MS2_COLUMNS){
+    if(!length(columns)){
+        stop("Some columns must be selected. Valid options are: ",
+             paste(.TIMSTOF_MS2_COLUMNS, collapse = " "))
+    }
+    if(!all(columns %in% .TIMSTOF_MS2_COLUMNS)){
+        stop("Invalid column/s selected: ", 
+             columns[!columns %in% .TIMSTOF_MS2_COLUMNS], "\n",
+             "Valid options are: ", paste(.TIMSTOF_MS2_COLUMNS, collapse = " "))
+    }
     if (is.null(names(x@fileNames))){
-        return(matrix(numeric(), nrow = 0, ncol = length(.TIMSTOF_MS2_COLUMNS)))
+        out <- data.frame(matrix(NA_real_, nrow = 0, ncol = length(columns)))
+        colnames(out) <- columns
+        return(out)
     }
     tbls <- bpmapply(FUN = .do_calculate_core_ms2_information,
                      x = names(x@fileNames),
-                     indices = lapply(split(x@indices[,1:2], f = x@indices[,3]),
-                                      matrix, ncol = 2),
+                     indices = split(as.data.frame(x@indices[,1:2]),
+                                     f = x@indices[,3]),
+                     MoreArgs = list(columns = columns),
+                     USE.NAMES = FALSE,
                      SIMPLIFY = FALSE,
                      BPPARAM = bpparam())
     output <- do.call(rbind, tbls)
-    output[order(order(x@indices[,3])), ]
+    rownames(output) <- NULL
+    output[order(order(x@indices[,3])), , drop=FALSE]
 }
 
 #' @importFrom opentimsr OpenTIMS CloseTIMS table2df
 #' @importFrom MsCoreUtils between
-.do_calculate_core_ms2_information <- function(x, indices){
+#' @importFrom dplyr left_join rename
+.do_calculate_core_ms2_information <- function(x, indices,
+                                               columns = .TIMSTOF_MS2_COLUMNS){
     tms <- opentimsr::OpenTIMS(x)
     on.exit(opentimsr::CloseTIMS(tms))
     if (missing(indices)) {
         indices <- unique(.query_tims(tms, frames = tms@frames$Id,
                                       columns = c("frame", "scan")))
     }
-    output <- matrix(NA_real_,
-                     nrow = nrow(indices),
-                     ncol = length(.TIMSTOF_MS2_COLUMNS))
-    tbl <- opentimsr::table2df(tms, c("PASEFFrameMsMsInfo", "Precursors"))
-    for (i in seq(nrow(tbl[[1]]))) {
-        row <- tbl[[1]][i, ]
-        prec <- tbl[[2]][row$Precursor,]
-        target_rows <- which(indices[,1] == row$Frame &
-                             MsCoreUtils::between(indices[,2],
-                                                  c(row$ScanNumBegin,
-                                                    row$ScanNumEnd)))
-        if (length(target_rows)) {
-            output[target_rows, ] <- 
-                rep(c(prec$MonoisotopicMz,                       ## precursorMz
-                         prec$Charge,                            ## precursorCharge
-                         prec$Intensity,                         ## precursorIntensity
-                         row$CollisionEnergy,                    ## collisionEnergy
-                         row$IsolationMz - row$IsolationWidth,   ## isolationWindowLowerMz
-                         row$IsolationMz,                        ## isolationWindowTargetMz
-                         row$IsolationMz + row$IsolationWidth),  ## isolationWindowUpperMz
-                     each = length(target_rows))
-        }
+    indices <- as.data.frame(indices)
+    if(!all(c("frame", "scan") %in% colnames(indices))){
+        stop("Indices must have both frame and scan columns\n",
+             "Current columns are: ", paste(colnames(indices), collapse = " "))
     }
-    output
+    
+    tbl <- opentimsr::table2df(tms, c("PASEFFrameMsMsInfo", "Precursors"))
+    
+    ## Join MS/MS frame details with precursor information
+    joined <- left_join(tbl[[1]], tbl[[2]], by = c("Precursor" = "Id"))
+        
+    ## Create needed MS/MS info columns
+    joined <- rename(joined, 
+                     isolationWindowTargetMz = IsolationMz,
+                     collisionEnergy = CollisionEnergy,
+                     precursorMz = MonoisotopicMz,
+                     precursorCharge = Charge,
+                     precursorIntensity = Intensity)
+    
+    joined$isolationWindowLowerMz <- 
+        joined$isolationWindowTargetMz - joined$IsolationWidth / 2
+    joined$isolationWindowUpperMz <- 
+        joined$isolationWindowTargetMz + joined$IsolationWidth / 2
+        
+    ## Expand to get a row for each MS/MS scan, then join with the indices
+    full <- joined[rep(seq_len(nrow(joined)),
+                       times = (joined$ScanNumEnd - joined$ScanNumBegin + 1)),]
+    full$scan <- do.call(c, 
+                         mapply(function(x,y){seq(x,y)}, 
+                                joined$ScanNumBegin, joined$ScanNumEnd,
+                                SIMPLIFY = FALSE)
+                         )
+    output <- left_join(as.data.frame(indices), full,
+                        c("frame" = "Frame", "scan"))
+    if(!all(columns %in% colnames(output))){
+        stop("Could not find the following columns in the MS/MS data tables: ", 
+             columns[!columns %in% colnames(output)])
+    }
+    rownames(output) <- NULL
+    output[, columns, drop = FALSE]
 }

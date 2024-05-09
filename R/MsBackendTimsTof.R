@@ -97,6 +97,8 @@
 #' @rdname MsBackendTimsTof
 #'
 #' @exportClass MsBackendTimsTof
+#' 
+#' @importFrom utils packageVersion
 #'
 #' @examples
 #'
@@ -137,7 +139,8 @@ setClass("MsBackendTimsTof",
                                                                   "file"))),
                                fileNames = integer(),
                                readonly = TRUE,
-                               version = "0.1"))
+                               version = as.character(
+                                   packageVersion("MsBackendTimsTof"))))
 
 #' @importFrom methods validObject
 setValidity("MsBackendTimsTof", function(object) {
@@ -214,7 +217,7 @@ setMethod("rtime", "MsBackendTimsTof", function(object) {
     .get_frame_columns(object, "rtime")
 })
 
-#' @importFrom methods "slot<-"
+#' @importFrom methods slot<-
 #'
 #' @importFrom MsCoreUtils i2index
 #'
@@ -292,56 +295,55 @@ setMethod("msLevel", "MsBackendTimsTof", function(object, ...) {
 #'
 #' @rdname MsBackendTimsTof
 setMethod("precursorMz", "MsBackendTimsTof", function(object, ...) {
-    tbl <- .calculate_core_ms2_information(object)
-    tbl[, .TIMSTOF_MS2_COLUMNS == "precursorMz"]
+    .calculate_core_ms2_information(object, columns = "precursorMz")[[1]]
 })
 
 #' @importMethodsFrom Spectra precursorCharge
 #'
 #' @rdname MsBackendTimsTof
 setMethod("precursorCharge", "MsBackendTimsTof", function(object, ...) {
-    tbl <- .calculate_core_ms2_information(object)
-    tbl[, .TIMSTOF_MS2_COLUMNS == "precursorCharge"]
+    .calculate_core_ms2_information(object,
+                                    columns = "precursorCharge")[[1]] |>
+    as.integer()
 })
 
 #' @importMethodsFrom Spectra precursorIntensity
 #'
 #' @rdname MsBackendTimsTof
 setMethod("precursorIntensity", "MsBackendTimsTof", function(object, ...) {
-    tbl <- .calculate_core_ms2_information(object)
-    tbl[, .TIMSTOF_MS2_COLUMNS == "precursorIntensity"]
+    .calculate_core_ms2_information(object,
+                                    columns = "precursorIntensity")[[1]]
 })
 
 #' @importMethodsFrom Spectra collisionEnergy
 #'
 #' @rdname MsBackendTimsTof
 setMethod("collisionEnergy", "MsBackendTimsTof", function(object, ...) {
-    tbl <- .calculate_core_ms2_information(object)
-    tbl[, .TIMSTOF_MS2_COLUMNS == "collisionEnergy"]
+    .calculate_core_ms2_information(object, columns = "collisionEnergy")[[1]]
 })
 
 #' @importMethodsFrom Spectra isolationWindowLowerMz
 #'
 #' @rdname MsBackendTimsTof
 setMethod("isolationWindowLowerMz", "MsBackendTimsTof", function(object, ...) {
-    tbl <- .calculate_core_ms2_information(object)
-    tbl[, .TIMSTOF_MS2_COLUMNS == "isolationWindowLowerMz"]
+    .calculate_core_ms2_information(object, 
+                                    columns = "isolationWindowLowerMz")[[1]]
 })
 
 #' @importMethodsFrom Spectra isolationWindowTargetMz
 #'
 #' @rdname MsBackendTimsTof
 setMethod("isolationWindowTargetMz", "MsBackendTimsTof", function(object, ...) {
-    tbl <- .calculate_core_ms2_information(object)
-    tbl[, .TIMSTOF_MS2_COLUMNS == "isolationWindowTargetMz"]
+    .calculate_core_ms2_information(object, 
+                                    columns = "isolationWindowTargetMz")[[1]]
 })
 
 #' @importMethodsFrom Spectra isolationWindowUpperMz
 #'
 #' @rdname MsBackendTimsTof
 setMethod("isolationWindowUpperMz", "MsBackendTimsTof", function(object, ...) {
-    tbl <- .calculate_core_ms2_information(object)
-    tbl[, .TIMSTOF_MS2_COLUMNS == "isolationWindowUpperMz"]
+    .calculate_core_ms2_information(object,
+                                    columns = "isolationWindowUpperMz")[[1]]
 })
 
 #' @rdname MsBackendTimsTof
@@ -353,3 +355,4 @@ setMethod("$", "MsBackendTimsTof", function(x, name) {
     else
         spectraData(x, name)[, 1L]
 })
+
