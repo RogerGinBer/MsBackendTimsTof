@@ -98,8 +98,6 @@
 #'
 #' @exportClass MsBackendTimsTof
 #' 
-#' @importFrom utils packageVersion
-#'
 #' @examples
 #'
 #' ## Load the opentimsr package to retrieve the required shared library
@@ -139,8 +137,7 @@ setClass("MsBackendTimsTof",
                                                                   "file"))),
                                fileNames = integer(),
                                readonly = TRUE,
-                               version = as.character(
-                                   packageVersion("MsBackendTimsTof"))))
+                               version = "0.1"))
 
 #' @importFrom methods validObject
 setValidity("MsBackendTimsTof", function(object) {

@@ -6,7 +6,6 @@
 
 - Add methods for `precursorMz`, `precursorCharge`, `precursorIntensity`, `collisionEnergy`,   `isolationWindowLowerMz`, `isolationWindowTargetMz` and `isolationWindowUpperMz`.
 
-- Update version info automatically in the `version` slot.
 
 
 # MsBackendTimsTof 0.1
