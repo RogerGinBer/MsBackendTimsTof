@@ -38,6 +38,7 @@ Imports:
     opentimsr (>= 1.0.11),
     MsCoreUtils,
     S4Vectors,
+    ProtGenerics,
     dplyr
 Suggests:
     testthat,
@@ -45,6 +46,8 @@ Suggests:
     roxygen2,
     BiocStyle (>= 2.5.19),
     rmarkdown
+Remotes:
+    michalsta/opentims/opentimsr
 License: Artistic-2.0
 LazyData: yes
 Encoding: UTF-8
